@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.1.0-preview.2] - 2026-11-21
+
 ### Changed
 
 - Make the quickstart runnable and clarify hybrid search, indexing, and cancellation behavior.
+- Expand XML API documentation for collection schemas, constructor validation, index defaults, hybrid search, and dependency injection.
 
 ## [0.1.0-preview.1] - 2026-11-21
 
@@ -29,5 +32,6 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 - DataIngestion sample (offline pipeline, re-ingestion, hybrid search) and a console benchmark under `benchmarks/`.
 - Support for caller-assigned `Guid` keys, including collections created by `Microsoft.Extensions.DataIngestion`'s `VectorStoreWriter`. Auto-generated keys are not supported.
 
-[Unreleased]: https://github.com/pinkroosterai/PinkRooster.Extensions.VectorData.LanceDB/compare/v0.1.0-preview.1...main
+[Unreleased]: https://github.com/pinkroosterai/PinkRooster.Extensions.VectorData.LanceDB/compare/v0.1.0-preview.2...main
+[0.1.0-preview.2]: https://github.com/pinkroosterai/PinkRooster.Extensions.VectorData.LanceDB/compare/v0.1.0-preview.1...v0.1.0-preview.2
 [0.1.0-preview.1]: https://github.com/pinkroosterai/PinkRooster.Extensions.VectorData.LanceDB/releases/tag/v0.1.0-preview.1
