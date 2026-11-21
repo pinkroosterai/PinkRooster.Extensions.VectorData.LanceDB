@@ -25,6 +25,7 @@ docs/*
 CLAUDE.md
 AGENTS.md
 .claude/
+/.pi/
 .superpowers/
 .worktrees/
 tasks/

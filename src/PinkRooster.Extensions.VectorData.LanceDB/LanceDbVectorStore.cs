@@ -5,7 +5,7 @@ using PinkRooster.Extensions.VectorData.LanceDB.Internal;
 
 namespace PinkRooster.Extensions.VectorData.LanceDB;
 
-/// <summary>LanceDB implementation of <see cref="VectorStore"/> for local embedded databases.</summary>
+/// <summary>Manages vector collections stored as tables in a local, embedded LanceDB database.</summary>
 public sealed class LanceDbVectorStore : VectorStore
 {
     private readonly string _databaseDirectory;
@@ -15,8 +15,9 @@ public sealed class LanceDbVectorStore : VectorStore
 
     /// <summary>Initializes a new instance of the <see cref="LanceDbVectorStore"/> class.</summary>
     /// <param name="databaseDirectory">The path to the local directory where LanceDB stores its tables.</param>
-    /// <param name="options">Optional store options.</param>
-    /// <exception cref="ArgumentException"><paramref name="databaseDirectory"/> is null, empty or white space.</exception>
+    /// <param name="options">The store options, or <see langword="null"/> to use the defaults.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="databaseDirectory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="databaseDirectory"/> is empty or consists only of white-space characters.</exception>
     public LanceDbVectorStore(string databaseDirectory, LanceDbVectorStoreOptions? options = null)
         : this(databaseDirectory, options, connect: null)
     {
@@ -98,6 +99,11 @@ public sealed class LanceDbVectorStore : VectorStore
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// When <paramref name="definition"/> is <see langword="null"/>, this store uses
+    /// <see cref="LanceDbVectorStoreOptions.DefaultCollectionDefinition"/> if configured.
+    /// Otherwise, the schema is inferred from <typeparamref name="TRecord"/>.
+    /// </remarks>
     public override VectorStoreCollection<TKey, TRecord> GetCollection<TKey, TRecord>(string name, VectorStoreCollectionDefinition? definition = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -123,6 +129,11 @@ public sealed class LanceDbVectorStore : VectorStore
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Supports <see cref="LanceDbVectorStore"/>, <see cref="VectorStoreMetadata"/>, and the underlying LanceDB
+    /// <see cref="Connection"/>. The store owns the connection; callers should not dispose it.
+    /// <paramref name="serviceKey"/> is ignored.
+    /// </remarks>
     public override object? GetService(Type serviceType, object? serviceKey = null)
     {
         ArgumentNullException.ThrowIfNull(serviceType);

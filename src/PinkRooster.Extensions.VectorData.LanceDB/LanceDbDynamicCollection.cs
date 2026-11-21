@@ -8,7 +8,11 @@ using LanceTable = lancedb.Table;
 
 namespace PinkRooster.Extensions.VectorData.LanceDB;
 
-/// <summary>LanceDB implementation of <see cref="VectorStoreCollection{TKey, TRecord}"/> for dynamic dictionary records.</summary>
+/// <summary>Manages dictionary records in a local LanceDB table.</summary>
+/// <remarks>
+/// A <see cref="VectorStoreCollectionDefinition"/> describes the record schema.
+/// Dictionary keys correspond to the property names in that definition.
+/// </remarks>
 [SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "Follows Microsoft.Extensions.VectorData VectorStoreCollection naming convention.")]
 public sealed class LanceDbDynamicCollection : VectorStoreCollection<object, Dictionary<string, object?>>, IKeywordHybridSearchable<Dictionary<string, object?>>
 {
@@ -21,10 +25,18 @@ public sealed class LanceDbDynamicCollection : VectorStoreCollection<object, Dic
     private readonly bool _ownsStore;
     private bool _disposed;
 
-    /// <summary>Initializes a new instance of the <see cref="LanceDbDynamicCollection"/> class for a database directory.</summary>
+    /// <summary>Initializes a new instance of the <see cref="LanceDbDynamicCollection"/> class.</summary>
     /// <param name="databaseDirectory">The path to the local database directory.</param>
-    /// <param name="name">The collection name.</param>
-    /// <param name="options">Optional collection options.</param>
+    /// <param name="name">The table name. Use only ASCII letters, digits, underscores, hyphens, and periods.</param>
+    /// <param name="options">The collection options, which must include a <see cref="LanceDbCollectionOptions.Definition"/>.</param>
+    /// <remarks>This constructor does not create the table. Call <see cref="EnsureCollectionExistsAsync"/> to create it explicitly.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="databaseDirectory"/> or <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="databaseDirectory"/> or <paramref name="name"/> is empty or consists only of white-space characters,
+    /// or <paramref name="name"/> contains an invalid character.
+    /// This exception also occurs if <paramref name="options"/> does not supply a collection definition.
+    /// </exception>
+    /// <exception cref="NotSupportedException">The collection schema uses a feature that this provider does not support.</exception>
     public LanceDbDynamicCollection(string databaseDirectory, string name, LanceDbCollectionOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseDirectory);
@@ -77,6 +89,7 @@ public sealed class LanceDbDynamicCollection : VectorStoreCollection<object, Dic
         => _operations.CollectionExistsAsync(cancellationToken);
 
     /// <inheritdoc/>
+    /// <remarks>If the table already exists, its schema is checked against the collection definition.</remarks>
     public override Task EnsureCollectionExistsAsync(CancellationToken cancellationToken = default)
         => _operations.EnsureCollectionExistsAsync(cancellationToken);
 
@@ -128,6 +141,11 @@ public sealed class LanceDbDynamicCollection : VectorStoreCollection<object, Dic
         => _operations.SearchAsync(vector, top, options, cancellationToken);
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// The collection must have exactly one full-text indexed property unless
+    /// <see cref="HybridSearchOptions{TRecord}.AdditionalProperty"/> selects one.
+    /// Scores reflect the combined ranks of the vector and full-text matches, not vector similarity alone.
+    /// </remarks>
     public IAsyncEnumerable<VectorSearchResult<Dictionary<string, object?>>> HybridSearchAsync<TInput>(
         TInput searchValue,
         ICollection<string> keywords,
@@ -138,6 +156,12 @@ public sealed class LanceDbDynamicCollection : VectorStoreCollection<object, Dic
         => _operations.HybridSearchAsync(searchValue, keywords, top, options, cancellationToken);
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Supports the collection instance, <see cref="VectorStoreCollectionMetadata"/>, <see cref="CollectionModel"/>,
+    /// the shared LanceDB <see cref="Connection"/>, and a LanceDB <see cref="LanceTable"/> handle.
+    /// Dispose the returned table handle when finished, but do not dispose the shared connection.
+    /// <paramref name="serviceKey"/> is ignored.
+    /// </remarks>
     public override object? GetService(Type serviceType, object? serviceKey = null)
     {
         ArgumentNullException.ThrowIfNull(serviceType);

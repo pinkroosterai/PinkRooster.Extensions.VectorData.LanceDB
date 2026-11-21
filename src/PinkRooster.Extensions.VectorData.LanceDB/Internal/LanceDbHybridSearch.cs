@@ -7,10 +7,10 @@ namespace PinkRooster.Extensions.VectorData.LanceDB.Internal;
 /// <summary>Helpers for provider-side hybrid search: a full-text query and reciprocal-rank fusion.</summary>
 internal static class LanceDbHybridSearch
 {
-    /// <summary>The reciprocal-rank-fusion constant (D10).</summary>
+    /// <summary>The offset added to each one-based rank before computing its reciprocal.</summary>
     public const int RankConstant = 60;
 
-    /// <summary>The smallest number of candidates taken from each half before fusing.</summary>
+    /// <summary>The lower bound on the candidate limit for each search before fusion.</summary>
     public const int MinimumDepth = 50;
 
     public static async Task<RecordBatch> RunFullTextQueryAsync(
@@ -40,7 +40,11 @@ internal static class LanceDbHybridSearch
         return await query.ToArrow().ConfigureAwait(false);
     }
 
-    /// <summary>Fuses ranked lists with reciprocal-rank fusion; the first record seen for a key is kept.</summary>
+    /// <summary>Combines ranked result lists by summing reciprocal-rank contributions for each record key.</summary>
+    /// <typeparam name="T">The record type.</typeparam>
+    /// <param name="rankedLists">The input lists, each ordered from highest to lowest rank.</param>
+    /// <param name="cancellationToken">The token to observe for cancellation.</param>
+    /// <returns>One result per key, ordered by descending score, using the first record encountered for each key.</returns>
     public static List<(T Record, double Score)> Fuse<T>(IEnumerable<IReadOnlyList<(object Key, T Record)>> rankedLists, CancellationToken cancellationToken)
     {
         Dictionary<object, int> positions = [];
