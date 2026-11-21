@@ -10,13 +10,13 @@
 
 ## Status
 
-Preview (`0.1.0-preview.1`), developed against the .NET 10 SDK on Linux, macOS, and Windows.
+The first public preview is [`0.1.0-preview.1`](https://www.nuget.org/packages/PinkRooster.Extensions.VectorData.LanceDB/0.1.0-preview.1). See [Compatibility](#compatibility) for the supported platforms.
 
 ## The idea
 
 `PinkRooster.Extensions.VectorData.LanceDB` is an embedded vector database provider implementing the standard `Microsoft.Extensions.VectorData` abstractions (`VectorStore` and `VectorStoreCollection`) on top of LanceDB's native columnar storage engine.
 
-It provides serverless, in-process vector storage and similarity search for .NET 10 AI workloads and Semantic Kernel applications without requiring external services, Docker containers, or cloud connections. All data and vector indexes are stored in local file-system directories.
+It provides in-process vector storage and similarity search for .NET 10 AI workloads and Semantic Kernel applications without requiring external services, Docker containers, or cloud connections. All data and vector indexes are stored in local file-system directories.
 
 ## Install
 
@@ -26,13 +26,36 @@ dotnet add package PinkRooster.Extensions.VectorData.LanceDB --prerelease
 
 ## Quickstart
 
+In a .NET 10 console app, add these imports at the top of `Program.cs`:
+
+```csharp
+using Microsoft.Extensions.VectorData;
+using PinkRooster.Extensions.VectorData.LanceDB;
+```
+
+Get a handle to a typed collection:
+
 ```csharp
 string databasePath = Path.Combine(Path.GetTempPath(), "lancedb-hello");
 using LanceDbVectorStore store = new(databasePath);
 var collection = store.GetCollection<string, Item>("items");
 ```
 
-Define your record model with standard `Microsoft.Extensions.VectorData` attributes:
+Create the collection on disk, upsert a record, and search with a four-dimensional vector:
+
+```csharp
+await collection.EnsureCollectionExistsAsync();
+
+float[] queryVector = [1f, 0f, 0f, 0f];
+await collection.UpsertAsync(new Item { Id = "badge-1", Text = "Lab badge QX7731", Vector = queryVector });
+
+await foreach (var hit in collection.SearchAsync(queryVector, top: 1))
+{
+    Console.WriteLine($"{hit.Record.Text} ({hit.Score})");
+}
+```
+
+Place the record model after the top-level statements. `IsFullTextIndexed` also lets this collection run the hybrid-search example below:
 
 ```csharp
 public sealed class Item
@@ -40,7 +63,7 @@ public sealed class Item
     [VectorStoreKey]
     public string Id { get; set; } = string.Empty;
 
-    [VectorStoreData]
+    [VectorStoreData(IsFullTextIndexed = true)]
     public string Text { get; set; } = string.Empty;
 
     [VectorStoreVector(4)]
@@ -83,41 +106,47 @@ LanceDbCollectionOptions collectionOptions = new()
 
 ## Distance functions and scores
 
-LanceDB maps vector distance metrics to normalized similarity scores:
+The provider converts LanceDB distances into scores. Depending on the configured metric, a better match can have a higher or lower score:
 
 | Distance Function | LanceDB Metric | Distance Range | Score Formula | Score Meaning |
 |---|---|---|---|---|
-| `DistanceFunction.CosineSimilarity` (default) | Cosine | $[0, 2]$ | $1 - \text{distance}$ | Higher is better (range $[-1, 1]$) |
-| `DistanceFunction.CosineDistance` | Cosine | $[0, 2]$ | $\text{distance}$ | Lower is better |
-| `DistanceFunction.DotProductSimilarity` | Dot | $(-\infty, \infty)$ | $1 - \text{distance}$ | Higher is better |
-| `DistanceFunction.NegativeDotProductSimilarity` | Dot | $(-\infty, \infty)$ | $\text{distance} - 1$ | Lower is better |
-| `DistanceFunction.EuclideanSquaredDistance` | L2 | $[0, \infty)$ | $\text{distance}$ | Lower is better |
-| `DistanceFunction.EuclideanDistance` | L2 | $[0, \infty)$ | $\sqrt{\max(0, \text{distance})}$ | Lower is better |
+| `DistanceFunction.CosineSimilarity` (default) | Cosine | `[0, 2]` | `1 - distance` | Higher is better (range `[-1, 1]`) |
+| `DistanceFunction.CosineDistance` | Cosine | `[0, 2]` | `distance` | Lower is better |
+| `DistanceFunction.DotProductSimilarity` | Dot | Unbounded | `1 - distance` | Higher is better |
+| `DistanceFunction.NegativeDotProductSimilarity` | Dot | Unbounded | `distance - 1` | Lower is better |
+| `DistanceFunction.EuclideanSquaredDistance` | L2 | Nonnegative | `distance` | Lower is better |
+| `DistanceFunction.EuclideanDistance` | L2 | Nonnegative | `sqrt(max(0, distance))` | Lower is better |
 
 ## Indexes
 
 Mark a data property `IsIndexed` and the provider creates a scalar index when the collection is created: `BitmapIndex` for `bool`, `LabelListIndex` for string lists, and `BTreeIndex` for every other type. Mark a string property `IsFullTextIndexed` and it also gets a full-text index (`IsFullTextIndexed` on a property that is not a string throws `NotSupportedException`).
 
-Vector properties search by exact scan unless you ask for an index. Declare `IndexKind.IvfFlat` or `IndexKind.Hnsw` on the vector property (`IndexKind.Flat` builds nothing) and the provider builds that index for you once the table reaches `LanceDbCollectionOptions.IndexThreshold` rows (default 100,000), using the property's distance function. Rows added after the build are still found, and a built index is never rebuilt.
+Vector properties search by exact scan unless you ask for an index. Declare `IndexKind.IvfFlat` or `IndexKind.Hnsw` on the vector property (`IndexKind.Flat` builds nothing) and the provider builds that index for you once the table reaches `LanceDbCollectionOptions.IndexThreshold` rows (default 100,000), using the property's distance function. Searches include rows added after the index was built. The provider does not automatically rebuild an existing index.
+
+For a record model `IndexedItem` with an indexed vector property, pass collection options when constructing the collection (or registering it with dependency injection):
 
 ```csharp
 LanceDbCollectionOptions options = new() { IndexThreshold = 50_000 };
+using var indexedCollection = new LanceDbCollection<string, IndexedItem>(databasePath, "indexed-items", options);
 ```
 
-The build runs inline, inside the `UpsertAsync` call that takes the table past the threshold, so that one upsert is slow. If the build fails the data is still written, and the build is retried after the next upsert. Vector searches ask LanceDB to refine candidates with exact distances, because the approximate HNSW search lost recall at small limits.
+The build runs inline after data is written in `UpsertAsync`, so that call may take longer. A failed build is retried on a later upsert. Indexed search refines candidates with exact distances, but the candidate set is still approximate.
 
 ## Full-text and hybrid search
 
 Collections implement `IKeywordHybridSearchable<TRecord>` (also registered by `AddLanceDbCollection`). The full-text property is the one marked `IsFullTextIndexed`; with several, name one in `HybridSearchOptions.AdditionalProperty`, otherwise the call throws `InvalidOperationException` (as it does when there is none).
 
+`GetCollection` returns the base collection type. Use its hybrid-search interface to run the query below after the quickstart upsert (before the `Item` declaration):
+
 ```csharp
-await foreach (var hit in collection.HybridSearchAsync(queryVector, ["QX7731"], top: 3))
+IKeywordHybridSearchable<Item> hybrid = (IKeywordHybridSearchable<Item>)collection;
+await foreach (var hit in hybrid.HybridSearchAsync(queryVector, ["QX7731"], top: 3))
 {
     Console.WriteLine($"{hit.Record.Id} {hit.Score}");
 }
 ```
 
-The provider runs the vector search and the full-text search separately, each with the filter, fuses the two ranked lists with reciprocal-rank fusion (k = 60), applies `Skip` and `top` to the fused list, and returns the fused score. Several keywords match as OR. An exact identifier in one record's text therefore ranks high even when that record's vector is far from the query. Hybrid search runs on typed and dynamic collections and honours `IncludeVectors`, `ScoreThreshold` and embedding generation of a text query.
+The provider runs the vector search and the full-text search separately, each with the filter, fuses the two ranked lists with reciprocal-rank fusion (k = 60), applies `Skip` and `top` to the fused list, and returns the fused score. Multiple keywords match with OR semantics. A full-text match can contribute even if the record is absent from the vector results. Hybrid search runs on typed and dynamic collections and supports `IncludeVectors`, a `ScoreThreshold` on the fused score, and embedding generation for a text query.
 
 ## Benchmark
 
@@ -152,17 +181,17 @@ The command seeds 10,000 records of 768 dimensions into a temporary directory an
 - `Embedding<float>`
 
 ### Unsupported types and settings
-- `decimal`: excluded due to Rust Arrow FFI 16-byte buffer alignment requirements on 64-bit .NET heap.
+- `decimal` data properties.
 - `Half` / Float16 vectors: v1 targets 32-bit floating point vectors only.
 - Remote / cloud LanceDB URIs: v1 targets embedded local file-system directories only.
 
 ## Cancellation
 
-The native LanceDB engine and Rust FFI worker do not support cancellation of in-flight operations. The provider accepts a `CancellationToken` on all public asynchronous methods and checks `ThrowIfCancellationRequested()` prior to initiating native operations and between batch iterations. Calls with an already-cancelled token return immediately without opening or creating the database on disk.
+The provider checks cancellation before starting database work and at checkpoints between operations and batches. It cannot interrupt a native operation already in progress. Cancellation is not a rollback: writes that have already completed remain in the database.
 
 ## Conformance tests
 
-The test suite runs against the official `Microsoft.Extensions.VectorData.ConformanceTests` test suite (252 passed, 3 skipped; the hybrid-search and index-kind classes run too):
+The repository runs the upstream `Microsoft.Extensions.VectorData.ConformanceTests` suite, including the hybrid-search and index-kind tests. These three cases are skipped:
 
 | Skipped Test | Reason |
 |---|---|
@@ -182,7 +211,7 @@ See [samples](https://github.com/pinkroosterai/PinkRooster.Extensions.VectorData
 
 ## Compatibility
 
-.NET 10 SDK; tested on Linux (x64), macOS (ARM64), and Windows (x64).
+Requires .NET 10. The package targets Linux x64, macOS ARM64, and Windows x64; CI tests all three.
 
 ## Feedback, contributing, security and license
 

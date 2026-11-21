@@ -1,6 +1,6 @@
 # Samples
 
-One console project for each feature of PinkRooster.Extensions.VectorData.LanceDB. Run any sample with `dotnet run --project samples/<name>`. Each sample has a `RunAsync` that a test in `tests/PinkRooster.Extensions.VectorData.LanceDB.Samples.Tests` runs, and none needs a secret.
+Run a sample from the repository root with `dotnet run --project samples/PinkRooster.Extensions.VectorData.LanceDB.Samples.<Name>` (use `Hello` or `DataIngestion`). Tests in `tests/PinkRooster.Extensions.VectorData.LanceDB.Samples.Tests` exercise both samples. Neither sample needs credentials.
 
 | Sample | Shows |
 |---|---|

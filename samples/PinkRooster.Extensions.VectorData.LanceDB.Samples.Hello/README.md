@@ -1,6 +1,6 @@
 # Hello
 
-Initializes a local LanceDB vector store and retrieves a typed collection. It is the sample the README quickstart is copied from.
+Creates a local vector store object, retrieves a typed collection handle, and prints `items`. It does not create a table or write any data. For a full create, write, and search example, see the [quickstart](../../README.md#quickstart).
 
 ```text
 dotnet run --project samples/PinkRooster.Extensions.VectorData.LanceDB.Samples.Hello
