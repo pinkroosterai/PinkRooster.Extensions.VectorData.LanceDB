@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/PinkRooster.Extensions.VectorData.LanceDB.Benchmarks/PinkRooster.Extensions.VectorData.LanceDB.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/PinkRooster.Extensions.VectorData.LanceDB.Samples.DataIngestion/PinkRooster.Extensions.VectorData.LanceDB.Samples.DataIngestion.csproj" />
+    <Project Path="samples/PinkRooster.Extensions.VectorData.LanceDB.Samples.Hello/PinkRooster.Extensions.VectorData.LanceDB.Samples.Hello.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/PinkRooster.Extensions.VectorData.LanceDB/PinkRooster.Extensions.VectorData.LanceDB.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PinkRooster.Extensions.VectorData.LanceDB.Conformance.Tests/PinkRooster.Extensions.VectorData.LanceDB.Conformance.Tests.csproj" />
+    <Project Path="tests/PinkRooster.Extensions.VectorData.LanceDB.Repository.Tests/PinkRooster.Extensions.VectorData.LanceDB.Repository.Tests.csproj" />
+    <Project Path="tests/PinkRooster.Extensions.VectorData.LanceDB.Samples.Tests/PinkRooster.Extensions.VectorData.LanceDB.Samples.Tests.csproj" />
+    <Project Path="tests/PinkRooster.Extensions.VectorData.LanceDB.Tests/PinkRooster.Extensions.VectorData.LanceDB.Tests.csproj" />
+  </Folder>
+</Solution>

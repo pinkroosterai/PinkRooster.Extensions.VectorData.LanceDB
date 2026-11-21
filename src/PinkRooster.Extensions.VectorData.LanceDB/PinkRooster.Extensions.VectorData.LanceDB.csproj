@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>PinkRooster.Extensions.VectorData.LanceDB</PackageId>
+    <Description>Microsoft.Extensions.VectorData provider for local embedded LanceDB in .NET 10.</Description>
+    <PackageTags>pinkrooster vectordata lancedb embeddings semantic-search</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);MEVD9001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\PinkRooster.Extensions.VectorData.LanceDB.md" Pack="true" PackagePath="/README.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LanceDB" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" />
+  </ItemGroup>
+
+</Project>
